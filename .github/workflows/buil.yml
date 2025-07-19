@@ -1,0 +1,40 @@
+name: Build Meshtastic Firmware (Heltec V3 - 433 MHz - Offset -10°C)
+
+on:
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout firmware repo
+        uses: actions/checkout@v3
+
+      - name: Set up Python & PlatformIO
+        uses: actions/setup-python@v4
+        with:
+          python-version: 3.11
+
+      - name: Install PlatformIO
+        run: pip install platformio
+
+      - name: Apply temperature offset patch
+        run: |
+          sed -i '/float temp = bme.readTemperature();/a\    temp += -10.0; // Offset personnalisé -10°C' src/modules/Telemetry/Sensor/BME280Sensor.cpp
+
+      - name: Add heltec_v3_433 to platformio.ini
+        run: |
+          echo "[env:heltec_v3_433]" >> platformio.ini
+          echo "platform = espressif32" >> platformio.ini
+          echo "board = heltec_v3" >> platformio.ini
+          echo "monitor_speed = 115200" >> platformio.ini
+          echo "build_flags = -D REGION_CN_433" >> platformio.ini
+
+      - name: Build firmware
+        run: pio run -e heltec_v3_433
+
+      - name: Upload compiled firmware
+        uses: actions/upload-artifact@v4
+        with:
+          name: meshtastic-heltec-v3-433-minus10C
+          path: .pio/build/heltec_v3_433/firmware.bin
