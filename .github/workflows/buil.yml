@@ -6,6 +6,7 @@ on:
 jobs:
   build:
     runs-on: ubuntu-latest
+
     steps:
       - name: Checkout firmware repo
         uses: actions/checkout@v3
@@ -18,23 +19,29 @@ jobs:
       - name: Install PlatformIO
         run: pip install platformio
 
-      - name: Apply temperature offset patch
+      - name: Patch temperature offset (-10°C)
         run: |
-          sed -i '/float temp = bme.readTemperature();/a\    temp += -10.0; // Offset personnalisé -10°C' src/modules/Telemetry/Sensor/BME280Sensor.cpp
+          FILE="src/modules/Telemetry/Sensor/BME280Sensor.cpp"
+          if grep -q "float temp = bme.readTemperature();" "$FILE"; then
+            sed -i '/float temp = bme.readTemperature();/a\    temp += -10.0; // Offset température -10°C' "$FILE"
+          else
+            echo "❌ Erreur : ligne 'readTemperature' introuvable dans $FILE"
+            exit 1
+          fi
 
-      - name: Add heltec_v3_433 to platformio.ini
+      - name: Add heltec_wifi_lora_32_V3 to platformio.ini
         run: |
-          echo "[env:heltec_v3_433]" >> platformio.ini
+          echo "[env:heltec_wifi_lora_32_V3]" >> platformio.ini
           echo "platform = espressif32" >> platformio.ini
-          echo "board = heltec_v3" >> platformio.ini
+          echo "board = heltec_wifi_lora_32_V3" >> platformio.ini
           echo "monitor_speed = 115200" >> platformio.ini
           echo "build_flags = -D REGION_CN_433" >> platformio.ini
 
       - name: Build firmware
-        run: pio run -e heltec_v3_433
+        run: pio run -e heltec_wifi_lora_32_V3
 
       - name: Upload compiled firmware
         uses: actions/upload-artifact@v4
         with:
           name: meshtastic-heltec-v3-433-minus10C
-          path: .pio/build/heltec_v3_433/firmware.bin
+          path: .pio/build/heltec_wifi_lora_32_V3/firmware.bin
